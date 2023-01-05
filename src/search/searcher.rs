@@ -24,7 +24,7 @@ pub fn new() -> Engine {
 pub fn go(&mut self) -> Move {
     let board = &self.board.clone();
 
-    let (mv, eval) = self.search(board, self.depth, i32::MIN, i32::MAX);
+    let (mv, _) = self.search(board, self.depth, i32::MIN, i32::MAX);
 
     self.board.play_unchecked(mv.unwrap());
     self.past_pos.push(self.board.hash());
@@ -72,21 +72,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
         }
     }
     
-    let stand_pat = evaluator::evaluate(&board, false);
-    
-    if stand_pat >= beta {
-        return (None, beta);
-    }
-    
-    if alpha < stand_pat {
-        alpha = stand_pat;
-    }
-    
-    let mut moves: Vec<Move> = Vec::new();
-    board.generate_moves(|mv| {
-        moves.extend(mv);
-        false
-    });
+    let moves: Vec<Move> = evaluator::sorted_move_gen(&board);
 
     if depth == 0 {
         return self.qsearch(board, alpha, beta, self.depth);
