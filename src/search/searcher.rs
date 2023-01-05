@@ -24,7 +24,7 @@ pub fn new() -> Engine {
 pub fn go(&mut self) -> Move {
     let board = &self.board.clone();
 
-    let (mv, _) = self.search(board, self.depth, i32::MIN, i32::MAX);
+    let (mv, _) = self.search(board, self.depth, -i32::MAX, i32::MAX);
 
     self.board.play_unchecked(mv.unwrap());
     self.past_pos.push(self.board.hash());
@@ -84,7 +84,6 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
     for mv in moves {
         let mut nboard = board.clone();
         nboard.play_unchecked(mv);
-        
         let (_, score) = self.search(&nboard, depth - 1, -beta, -alpha);
         let score = -score;
         if score > eval {
