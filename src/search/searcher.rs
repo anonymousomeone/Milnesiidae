@@ -21,10 +21,10 @@ pub fn new() -> Engine {
     }
 }
 
-pub fn go(&mut self) -> Move {
+pub fn go(&mut self) -> (Move, i32) {
     let board = &self.board.clone();
 
-    let (mv, _) = self.search(board, self.depth, -i32::MAX, i32::MAX);
+    let (mv, eval) = self.search(board, self.depth, -i32::MAX, i32::MAX);
 
     self.board.play_unchecked(mv.unwrap());
     self.past_pos.push(self.board.hash());
@@ -53,7 +53,7 @@ pub fn go(&mut self) -> Move {
         self.endgame = true;
     }
 
-    mv.unwrap()
+    (mv.unwrap(), eval)
 }
 
 fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (Option<Move>, i32) {

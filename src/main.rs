@@ -1,7 +1,7 @@
 pub mod eval;
 pub mod search;
 
-use std::io;
+use std::io::{self, Write};
 use cozy_chess::BitBoard;
 use crate::search::searcher::Engine;
 fn main() {
@@ -12,11 +12,13 @@ fn main() {
     // let (mv, score) = search(board, 1, i32::MIN, i32::MAX, 0);
     // println!("{}", mv.unwrap());
     let mut engine = Engine::new();
-    engine.depth = 4;
-    let mv = engine.go();
-    println!("{}", mv);
+    engine.depth = 5;
+    let (mv, eval) = engine.go();
+    println!("Engine move: {}, eval: {}", mv, eval);
 
     loop {
+        print!("Your move: ");
+        io::stdout().flush();
         let mut input = String::new();
 
         io::stdin().read_line(&mut input).unwrap();
@@ -29,14 +31,19 @@ fn main() {
         let input = input.parse();
       let mv = match input {
         Ok(mv) => mv,
-        Err(_) => { println!("skill issue\n try again."); continue }
+        Err(_) => { println!("skill issue\ntry again."); continue }
       };
+
+      if engine.board.try_play(mv).unwrap() {
+  
+        let (mv, eval) = engine.go();
+  
+        println!("Engine move: {}, eval: {}", mv, eval);
+      } else {
+        println!("invalid move (skill issue)\ntry again.");
+        continue;
+      }
       
-        engine.board.play(mv);
-
-        let mv = engine.go();
-
-        println!("{}", mv);
     }
     }
 }
