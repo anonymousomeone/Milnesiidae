@@ -1,10 +1,116 @@
-use cozy_chess::*;
 use crate::eval::eval_info::*;
+use cozy_chess::*;
+
+#[derive(Debug)]
+#[derive(Clone)]
+struct ScoredMove {
+    mv: Move,
+    sc: i32,
+    capture: Piece,
+    piece: Piece,
+}
+
+impl ScoredMove {
+    fn new(board: &Board, mv: Move) -> ScoredMove {
+        let capture = board.piece_on(mv.to).unwrap();
+        let piece = board.piece_on(mv.from).unwrap();
+        ScoredMove {
+            mv,
+            sc: 0,
+            capture,
+            piece,
+        }
+    }
+}
+
+// get capturing moves or smth? idk
+pub fn loud_move_gen(board: &Board) -> Vec<Move> {
+    let mut moves: Vec<Move> = Vec::with_capacity(64);
+    let color = board.side_to_move();
+    let enemy_pcs = board.colors(!color);
+
+    let mut captures: Vec<ScoredMove> = Vec::with_capacity(32);
+    board.generate_moves(|mut capture_moves| {
+        capture_moves.to &= enemy_pcs;
+        for mv in capture_moves {
+            captures.push(ScoredMove::new(board, mv));
+        }
+        false
+    });
+
+    captures = score_moves(captures);
+    captures.sort_by(|a, b| b.sc.cmp(&a.sc));
+
+    for capture in captures {
+        moves.push(capture.mv);
+    }
+
+    moves
+}
+
+pub fn sorted_move_gen(board: &Board) -> Vec<Move> {
+    let mut moves: Vec<Move> = Vec::with_capacity(64);
+    let color = board.side_to_move();
+    let enemy_pcs = board.colors(!color);
+
+    let mut captures: Vec<ScoredMove> = Vec::with_capacity(32);
+    board.generate_moves(|mut capture_moves| {
+        capture_moves.to &= enemy_pcs;
+        for mv in capture_moves {
+            captures.push(ScoredMove::new(board, mv));
+        }
+        false
+    });
+
+    captures = score_moves(captures);
+    captures.sort_by(|a, b| b.sc.cmp(&a.sc));
+
+    for capture in captures.clone() {
+        moves.push(capture.mv);
+    }
+
+    board.generate_moves(|mut check_moves| {
+        check_moves.to &= board.colors(!color) & board.pieces(Piece::King);
+        moves.extend(check_moves);
+        false
+    });
+
+    board.generate_moves(|mut quiet_moves| {
+        quiet_moves.to &= !enemy_pcs;
+        moves.extend(quiet_moves);
+        false
+    });
+
+    moves
+}
+
+fn score_moves(ml: Vec<ScoredMove>) -> Vec<ScoredMove> {
+    let mut res: Vec<ScoredMove> = Vec::with_capacity(64);
+
+    for mut mv in ml {
+        let val = MVV_LVA[piece_index(mv.capture)][piece_index(mv.piece)];
+        mv.sc = val as i32;
+        res.push(mv);
+    }
+
+    res
+}
+
+fn piece_index(piece: Piece) -> usize {
+    return match piece {
+        Piece::King => 0,
+        Piece::Queen => 1,
+        Piece::Rook => 2,
+        Piece::Bishop => 3,
+        Piece::Knight => 4,
+        Piece::Pawn => 5,
+    };
+}
 
 pub fn evaluate(board: &Board, endgame: bool) -> i32 {
     let color: Color = board.side_to_move();
     let our_pieces = board.colors(color);
-    let enemy_pieces = board.colors(!color);
+    let their_pieces = board.colors(!color);
 
     let eval: i32;
 
@@ -12,7 +118,10 @@ pub fn evaluate(board: &Board, endgame: bool) -> i32 {
     let mut their_eval: i32 = 0;
 
     for &piece in &Piece::ALL {
-        for square in our_pieces {
+        let my_pieces = our_pieces & board.pieces(piece);
+        let enemy_pieces = their_pieces & board.pieces(piece);
+
+        for square in my_pieces {
             let mut sum: i32 = 0;
             match piece {
                 Piece::Pawn => {
@@ -167,8 +276,6 @@ pub fn evaluate(board: &Board, endgame: bool) -> i32 {
                     }
                 }
                 Piece::King => {
-                    sum += KING;
-
                     if endgame {
                         if color == Color::White {
                             sum += BKE[square as usize];
@@ -188,21 +295,6 @@ pub fn evaluate(board: &Board, endgame: bool) -> i32 {
         }
     }
     eval = our_eval - their_eval;
-    
+
     eval
-}
-
-// get capturing moves or smth? idk
-pub fn loud_move_gen(board: &Board) -> Vec<Move> {
-    let mut moves: Vec<Move> = Vec::with_capacity(64);
-    let color = board.side_to_move();
-    let enemy_pcs = board.colors(!color);
-
-    board.generate_moves(|mut capture_moves| {
-        capture_moves.to &= enemy_pcs;
-        moves.extend(capture_moves);
-        false
-    });
-
-    moves
 }

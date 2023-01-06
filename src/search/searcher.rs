@@ -21,10 +21,10 @@ pub fn new() -> Engine {
     }
 }
 
-pub fn go(&mut self) -> Move {
+pub fn go(&mut self) -> (Move, i32) {
     let board = &self.board.clone();
 
-    let (mv, eval) = self.search(board, self.depth, i32::MIN, i32::MAX);
+    let (mv, eval) = self.search(board, self.depth, -i32::MAX, i32::MAX);
 
     self.board.play_unchecked(mv.unwrap());
     self.past_pos.push(self.board.hash());
@@ -53,7 +53,7 @@ pub fn go(&mut self) -> Move {
         self.endgame = true;
     }
 
-    mv.unwrap()
+    (mv.unwrap(), eval)
 }
 
 fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (Option<Move>, i32) {
@@ -72,21 +72,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
         }
     }
     
-    let stand_pat = evaluator::evaluate(&board, false);
-    
-    if stand_pat >= beta {
-        return (None, beta);
-    }
-    
-    if alpha < stand_pat {
-        alpha = stand_pat;
-    }
-    
-    let mut moves: Vec<Move> = Vec::new();
-    board.generate_moves(|mv| {
-        moves.extend(mv);
-        false
-    });
+    let moves: Vec<Move> = evaluator::sorted_move_gen(&board);
 
     if depth == 0 {
         return self.qsearch(board, alpha, beta, self.depth);
@@ -98,7 +84,6 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
     for mv in moves {
         let mut nboard = board.clone();
         nboard.play_unchecked(mv);
-        
         let (_, score) = self.search(&nboard, depth - 1, -beta, -alpha);
         let score = -score;
         if score > eval {
@@ -118,6 +103,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
 fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) -> (Option<Move>, i32) {
     self.nodes += 1;
     ply += 1;
+
     match board.status() {
         GameStatus::Drawn => return (None, 0),
         GameStatus::Won => return (None, -30000 + ply),
@@ -131,7 +117,7 @@ fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) ->
         }
     }
     
-    let stand_pat = evaluator::evaluate(&board, false);
+    let stand_pat = evaluator::evaluate(&board, self.endgame);
     
     if stand_pat >= beta {
         return (None, beta);

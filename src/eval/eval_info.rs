@@ -4,14 +4,25 @@ pub const KNIGHT: i32 = 781;
 pub const BISHOP: i32 = 825;
 pub const ROOK: i32 = 1276;
 pub const QUEEN: i32 = 2538;
-pub const KING: i32 = 20000;
 // endgame variants
 pub const PAWN_E: i32 = 208;
 pub const KNIGHT_E: i32 = 854;
 pub const BISHOP_E: i32 = 915;
 pub const ROOK_E: i32 = 1380;
 pub const QUEEN_E: i32 = 2682;
-pub const KING_E: i32 = 20000;
+
+
+// MVV_VLA[victim][attacker]
+pub const MVV_LVA: [[u8; 7]; 7] = [
+    [0, 0, 0, 0, 0, 0, 0],       // victim K, attacker K, Q, R, B, N, P, None
+    [50, 51, 52, 53, 54, 55, 0], // victim Q, attacker K, Q, R, B, N, P, None
+    [40, 41, 42, 43, 44, 45, 0], // victim R, attacker K, Q, R, B, N, P, None
+    [30, 31, 32, 33, 34, 35, 0], // victim B, attacker K, Q, R, B, N, P, None
+    [20, 21, 22, 23, 24, 25, 0], // victim N, attacker K, Q, R, B, N, P, None
+    [10, 11, 12, 13, 14, 15, 0], // victim P, attacker K, Q, R, B, N, P, None
+    [0, 0, 0, 0, 0, 0, 0],       // victim None, attacker K, Q, R, B, N, P, None
+];
+
 
 // psts
 
