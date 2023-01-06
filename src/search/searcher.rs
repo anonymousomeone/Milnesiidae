@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use cozy_chess::*;
 
 use crate::eval::evaluator;
@@ -21,10 +23,23 @@ pub fn new() -> Engine {
     }
 }
 
-pub fn go(&mut self) -> (Move, i32) {
+pub fn go(&mut self) -> (Move, i32, u64, u64) {
+    self.nodes = 0;
+
+    let instant = Instant::now();
+
     let board = &self.board.clone();
 
     let (mv, eval) = self.search(board, self.depth, -i32::MAX, i32::MAX);
+
+    let elapsed = instant.elapsed().as_secs();
+
+    let nps;
+    if elapsed == 0 {
+        nps = self.nodes
+    } else {
+        nps = self.nodes / elapsed as u64;
+    }
 
     self.board.play_unchecked(mv.unwrap());
     self.past_pos.push(self.board.hash());
@@ -53,7 +68,7 @@ pub fn go(&mut self) -> (Move, i32) {
         self.endgame = true;
     }
 
-    (mv.unwrap(), eval)
+    (mv.unwrap(), eval, self.nodes, nps)
 }
 
 fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (Option<Move>, i32) {
