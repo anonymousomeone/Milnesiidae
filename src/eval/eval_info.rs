@@ -4,14 +4,12 @@ pub const KNIGHT: i32 = 781;
 pub const BISHOP: i32 = 825;
 pub const ROOK: i32 = 1276;
 pub const QUEEN: i32 = 2538;
-pub const KING: i32 = 20000;
 // endgame variants
 pub const PAWN_E: i32 = 208;
 pub const KNIGHT_E: i32 = 854;
 pub const BISHOP_E: i32 = 915;
 pub const ROOK_E: i32 = 1380;
 pub const QUEEN_E: i32 = 2682;
-pub const KING_E: i32 = 20000;
 
 
 // MVV_VLA[victim][attacker]

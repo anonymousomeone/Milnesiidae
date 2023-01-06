@@ -1,11 +1,16 @@
 pub mod eval;
 pub mod search;
+pub mod uci;
 
 use std::io::{self, Write};
-use cozy_chess::BitBoard;
+use cozy_chess::Board;
+use crate::eval::evaluator;
 use crate::search::searcher::Engine;
+use crate::uci::comms::Uci;
 fn main() {
-    println!("Hello, world!");
+  // let mut uci = Uci::new();
+  // println!("{:#?}", uci.handle_cmd("position startpos moves e2e4 e7e5".to_string()));
+  //   println!("Hello, world!");
 
     // println!("{}", evaluate(board.clone(), false));
     // println!("{:#?}", board);

@@ -1,6 +1,8 @@
 use crate::eval::eval_info::*;
 use cozy_chess::*;
 
+#[derive(Debug)]
+#[derive(Clone)]
 struct ScoredMove {
     mv: Move,
     sc: i32,
@@ -63,15 +65,15 @@ pub fn sorted_move_gen(board: &Board) -> Vec<Move> {
     captures = score_moves(captures);
     captures.sort_by(|a, b| b.sc.cmp(&a.sc));
 
-    for capture in captures {
+    for capture in captures.clone() {
         moves.push(capture.mv);
     }
 
-    // board.generate_moves(|mut check_moves| {
-    //     check_moves.to &= board.colors(!color) & board.pieces(Piece::King);
-    //     moves.extend(check_moves);
-    //     false
-    // });
+    board.generate_moves(|mut check_moves| {
+        check_moves.to &= board.colors(!color) & board.pieces(Piece::King);
+        moves.extend(check_moves);
+        false
+    });
 
     board.generate_moves(|mut quiet_moves| {
         quiet_moves.to &= !enemy_pcs;
@@ -108,7 +110,7 @@ fn piece_index(piece: Piece) -> usize {
 pub fn evaluate(board: &Board, endgame: bool) -> i32 {
     let color: Color = board.side_to_move();
     let our_pieces = board.colors(color);
-    let enemy_pieces = board.colors(!color);
+    let their_pieces = board.colors(!color);
 
     let eval: i32;
 
@@ -116,7 +118,10 @@ pub fn evaluate(board: &Board, endgame: bool) -> i32 {
     let mut their_eval: i32 = 0;
 
     for &piece in &Piece::ALL {
-        for square in our_pieces {
+        let my_pieces = our_pieces & board.pieces(piece);
+        let enemy_pieces = their_pieces & board.pieces(piece);
+
+        for square in my_pieces {
             let mut sum: i32 = 0;
             match piece {
                 Piece::Pawn => {
@@ -271,8 +276,6 @@ pub fn evaluate(board: &Board, endgame: bool) -> i32 {
                     }
                 }
                 Piece::King => {
-                    sum += KING;
-
                     if endgame {
                         if color == Color::White {
                             sum += BKE[square as usize];
