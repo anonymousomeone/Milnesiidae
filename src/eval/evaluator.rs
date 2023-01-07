@@ -1,18 +1,18 @@
-use crate::eval::eval_info::*;
+use crate::{eval::constants::*, search::{searcher::Searcher, constants::*}};
 use cozy_chess::*;
 
 #[derive(Debug)]
 #[derive(Clone)]
 struct ScoredMove {
     mv: Move,
-    sc: i32,
-    capture: Piece,
+    sc: u32,
+    capture: Option<Piece>,
     piece: Piece,
 }
 
 impl ScoredMove {
     fn new(board: &Board, mv: Move) -> ScoredMove {
-        let capture = board.piece_on(mv.to).unwrap();
+        let capture = board.piece_on(mv.to);
         let piece = board.piece_on(mv.from).unwrap();
         ScoredMove {
             mv,
@@ -20,6 +20,17 @@ impl ScoredMove {
             capture,
             piece,
         }
+    }
+
+    fn get_mv(&self) -> Move {
+        self.mv
+    }
+
+    fn get_sc(&self) -> u32 {
+        self.sc
+    }
+    fn set_sc(&mut self, score: u32) {
+        self.sc = score;
     }
 }
 
@@ -38,7 +49,7 @@ pub fn loud_move_gen(board: &Board) -> Vec<Move> {
         false
     });
 
-    captures = score_moves(captures);
+    captures = score_mvv_lva(captures);
     captures.sort_by(|a, b| b.sc.cmp(&a.sc));
 
     for capture in captures {
@@ -48,49 +59,89 @@ pub fn loud_move_gen(board: &Board) -> Vec<Move> {
     moves
 }
 
-pub fn sorted_move_gen(board: &Board) -> Vec<Move> {
-    let mut moves: Vec<Move> = Vec::with_capacity(64);
+pub fn sorted_move_gen(board: &Board, sinfo: &mut Searcher) -> Vec<Move> {
+    let mut res: Vec<Move> = Vec::with_capacity(64);
     let color = board.side_to_move();
     let enemy_pcs = board.colors(!color);
 
-    let mut captures: Vec<ScoredMove> = Vec::with_capacity(32);
+    let mut moves: Vec<ScoredMove> = Vec::with_capacity(64);
     board.generate_moves(|mut capture_moves| {
         capture_moves.to &= enemy_pcs;
         for mv in capture_moves {
-            captures.push(ScoredMove::new(board, mv));
+            moves.push(ScoredMove::new(board, mv));
         }
         false
     });
 
-    captures = score_moves(captures);
-    captures.sort_by(|a, b| b.sc.cmp(&a.sc));
-
-    for capture in captures.clone() {
-        moves.push(capture.mv);
+    moves = score_mvv_lva(moves);
+    moves.sort_by(|a, b| b.sc.cmp(&a.sc));
+    for mv in moves {
+        res.push(mv.mv);
     }
 
-    board.generate_moves(|mut check_moves| {
-        check_moves.to &= board.colors(!color) & board.pieces(Piece::King);
-        moves.extend(check_moves);
-        false
-    });
-
+    moves = Vec::with_capacity(64);
     board.generate_moves(|mut quiet_moves| {
         quiet_moves.to &= !enemy_pcs;
-        moves.extend(quiet_moves);
+        for mv in quiet_moves {
+            moves.push(ScoredMove::new(board, mv));
+        }
         false
     });
+    let killers = score_killer(&moves, sinfo);
+    // killers.sort_by(|a, b| b.sc.cmp(&a.sc));
+    for mv in killers {
+        res.push(mv.mv);
+    }
+    for mv in moves {
+        res.push(mv.mv);
+    }
 
-    moves
+    // board.generate_moves(|mut check_moves| {
+    //     check_moves.to &= board.colors(!color) & board.pieces(Piece::King);
+    //     moves.extend(check_moves);
+    //     false
+    // });
+
+    res
 }
 
-fn score_moves(ml: Vec<ScoredMove>) -> Vec<ScoredMove> {
+fn score_killer(ml: &Vec<ScoredMove>, sinfo: &mut Searcher) -> Vec<ScoredMove> {
+    let mut res: Vec<ScoredMove> = Vec::with_capacity(64);
+
+    for mv in ml {
+        match mv.capture {
+            Some(_) => {},
+            None => {
+                let ply = sinfo.depth as usize;
+                let mut i = 0;
+                while i < MAX_KILLER_MOVES && mv.get_sc() == 0 {
+                    let mut mv = mv.clone();
+                    let killer = sinfo.killer_moves[i][ply];
+                    if mv.get_mv() == killer {
+                        mv.set_sc(MVV_LVA_OFFSET - ((i as u32 + 1) * KILLER_VALUE));
+                        res.push(mv)
+                    }
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    res
+}
+
+fn score_mvv_lva(ml: Vec<ScoredMove>) -> Vec<ScoredMove> {
     let mut res: Vec<ScoredMove> = Vec::with_capacity(64);
 
     for mut mv in ml {
-        let val = MVV_LVA[piece_index(mv.capture)][piece_index(mv.piece)];
-        mv.sc = val as i32;
-        res.push(mv);
+        match mv.capture {
+            Some(capture) => {
+                let val = MVV_LVA_OFFSET + MVV_LVA[piece_index(capture)][piece_index(mv.piece)] as u32;
+                mv.sc = val as u32;
+                res.push(mv);
+            },
+            None => {}
+        }
     }
 
     res

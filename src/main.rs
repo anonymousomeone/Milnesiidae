@@ -1,11 +1,12 @@
 pub mod eval;
 pub mod search;
 pub mod uci;
+pub mod engine;
 
 use std::io::{self, Write};
 use cozy_chess::Board;
 use crate::eval::evaluator;
-use crate::search::searcher::Engine;
+use crate::engine::engine::Engine;
 use crate::uci::uci::Uci;
 fn main() {
   // let mut uci = Uci::new();

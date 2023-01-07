@@ -1,78 +1,34 @@
-use std::time::Instant;
-
 use cozy_chess::*;
 
 use crate::eval::evaluator;
+use crate::search::constants::*;
 
-pub struct Engine {
+pub struct Searcher {
     pub board: Board,
-    pub depth: i32,
     pub past_pos: Vec<u64>,
-    nodes: u64,
-    endgame: bool
+    pub depth: i32,
+    pub nodes: u64,
+    pub endgame: bool,
+
+    pub killer_moves: [[Move; MAX_DEPTH as usize]; MAX_KILLER_MOVES],
 }
 
-impl Engine {
-pub fn new() -> Engine {
-    Engine {
+impl Searcher {
+pub fn new() -> Searcher {
+    Searcher {
         board: Board::default(),
-        depth: 0,
         past_pos: Vec::with_capacity(64),
+        depth: 0,
         nodes: 0,
+
+        killer_moves: [[Searcher::nmove(); MAX_DEPTH as usize]; MAX_KILLER_MOVES],
         endgame: false
     }
 }
 
-pub fn go(&mut self) -> (Move, i32, u64, u64) {
-    self.nodes = 0;
-
-    let instant = Instant::now();
-
-    let board = &self.board.clone();
-
-    let (mv, eval) = self.search(board, self.depth, -i32::MAX, i32::MAX);
-
-    let elapsed = instant.elapsed().as_secs();
-
-    let nps;
-    if elapsed == 0 {
-        nps = self.nodes
-    } else {
-        nps = self.nodes / elapsed as u64;
-    }
-
-    self.board.play_unchecked(mv.unwrap());
-    self.past_pos.push(self.board.hash());
-
-    let knight_phase = 1;
-    let bishop_phase = 1;
-    let rook_phase = 2;
-    let queen_phase = 4;
-
-    let mut phase = 24;
-
-    let knights = board.pieces(Piece::Knight);
-    let bishops = board.pieces(Piece::Bishop);
-    let rooks = board.pieces(Piece::Rook);
-    let queens = board.pieces(Piece::Queen);
-
-
-    phase -= knights.len() * knight_phase;
-    phase -= bishops.len() * bishop_phase;
-    phase -= rooks.len() * rook_phase;
-    phase -= queens.len() * queen_phase;
-
-    phase = (phase * 256 + (24 / 2)) / 24;
-
-    if phase > 145 {
-        self.endgame = true;
-    }
-
-    (mv.unwrap(), eval, self.nodes, nps)
-}
-
-fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (Option<Move>, i32) {
+pub fn search(&mut self, board: &Board, depth: i32, mut ply: i32, mut alpha: i32, beta: i32) -> (Option<Move>, i32) {
     self.nodes += 1;
+    ply += 1;
     
     match board.status() {
         GameStatus::Drawn => return (None, 0),
@@ -87,7 +43,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
         }
     }
     
-    let moves: Vec<Move> = evaluator::sorted_move_gen(&board);
+    let moves: Vec<Move> = evaluator::sorted_move_gen(&board, self);
 
     if depth == 0 {
         return self.qsearch(board, alpha, beta, self.depth);
@@ -99,7 +55,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
     for mv in moves {
         let mut nboard = board.clone();
         nboard.play_unchecked(mv);
-        let (_, score) = self.search(&nboard, depth - 1, -beta, -alpha);
+        let (_, score) = self.search(&nboard, depth - 1, ply, -beta, -alpha);
         let score = -score;
         if score > eval {
             eval = score;
@@ -107,6 +63,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
             if eval > alpha {
                 alpha = eval;
                 if alpha >= beta {
+                    self.store_killer(mv, ply);
                     break;
                 }
             }
@@ -115,7 +72,7 @@ fn search(&mut self, board: &Board, depth: i32, mut alpha: i32, beta: i32) -> (O
     }
     (best_move, eval)
 }
-fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) -> (Option<Move>, i32) {
+pub fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) -> (Option<Move>, i32) {
     self.nodes += 1;
     ply += 1;
 
@@ -171,4 +128,25 @@ fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) ->
     }
     (best_move, eval)
 }
+
+fn store_killer(&mut self, mv: Move, ply: i32) {
+    let ply = ply as usize;
+    
+    if !(self.killer_moves[0][ply].to == mv.to && self.killer_moves[0][ply].from == mv.from) {
+      for i in (1..MAX_KILLER_MOVES).rev() {
+        let n = i as usize;
+        let previous = self.killer_moves[n - 1][ply];
+        self.killer_moves[n][ply] = previous;
+      }
+    }
+  
+    self.killer_moves[0][ply] = mv;
+  }
+  fn nmove() -> Move {
+    Move {
+      from: Square::A1,
+      to: Square::A1,
+      promotion: None
+    }
+  }
 }
