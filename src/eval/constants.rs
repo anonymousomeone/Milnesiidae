@@ -11,6 +11,9 @@ pub const BISHOP_E: i32 = 915;
 pub const ROOK_E: i32 = 1380;
 pub const QUEEN_E: i32 = 2682;
 
+// killer move stuff
+pub const MVV_LVA_OFFSET: u32 = u32::MAX - 256;
+pub const KILLER_VALUE: u32 = 10;
 
 // MVV_VLA[victim][attacker]
 pub const MVV_LVA: [[u8; 7]; 7] = [

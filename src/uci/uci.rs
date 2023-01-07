@@ -1,4 +1,4 @@
-use crate::search::searcher::Engine;
+use crate::Engine;
 use cozy_chess::*;
 // http://wbec-ridderkerk.nl/html/UCIProtocol.html
 
