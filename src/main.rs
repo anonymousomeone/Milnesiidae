@@ -11,7 +11,11 @@ use crate::uci::uci::Uci;
 
 use crate::search::searcher;
 use cozy_chess::Board;
+
+use std::env;
 fn main() {
+  
+  // env::set_var("RUST_BACKTRACE", "full");
   // let mut uci = Uci::new();
   // println!("{:#?}", uci.handle_cmd("position startpos moves e2e4 e7e5".to_string()));
   //   println!("Hello, world!");

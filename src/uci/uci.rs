@@ -28,7 +28,7 @@ impl Uci {
   }
 
   pub fn handle_cmd(&mut self, msg: String) {
-    let msg = msg.split(" ").collect::<Vec<&str>>();
+    let mut msg = msg.split(" ").collect::<Vec<&str>>();
 
     let command = msg[0];
 
@@ -45,9 +45,15 @@ impl Uci {
 
       "position" => {
         if msg[1] == "startpos" {
-          self.startpos(msg);
+          self.startpos(msg.clone());
         } else if msg[1] == "fen" {
-          self.engine.board = Board::from_fen(&msg[2..].join(" "), false).unwrap();
+          let fen = &msg[2..8].join(" ");
+
+          self.engine.board = Board::from_fen(fen, false).unwrap();
+        }
+        
+        if msg.len() > 8 {
+          Uci::parsemoves(self, msg.split_off(9));
         }
       },
 
