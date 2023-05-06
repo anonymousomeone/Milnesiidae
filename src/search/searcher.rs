@@ -10,7 +10,7 @@ pub struct Searcher {
     pub nodes: u64,
     pub endgame: bool,
 
-    pub killer_moves: [[Move; MAX_DEPTH as usize]; MAX_KILLER_MOVES],
+    pub killer_moves: [[Move; (MAX_DEPTH + 1) as usize]; MAX_KILLER_MOVES],
 }
 
 impl Searcher {
@@ -21,7 +21,7 @@ pub fn new() -> Searcher {
         depth: 0,
         nodes: 0,
 
-        killer_moves: [[Searcher::nmove(); MAX_DEPTH as usize]; MAX_KILLER_MOVES],
+        killer_moves: [[Searcher::nmove(); (MAX_DEPTH + 1) as usize]; MAX_KILLER_MOVES],
         endgame: false
     }
 }

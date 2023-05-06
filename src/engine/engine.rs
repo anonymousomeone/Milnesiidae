@@ -3,6 +3,7 @@ use cozy_chess::*;
 
 use crate::search::searcher::Searcher;
 use std::time::Instant;
+use crate::search;
 pub struct Engine {
     pub board: Board,
     pub depth: i32,
@@ -12,9 +13,11 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Engine {
+        let depth: i32 = search::constants::MAX_DEPTH.into();
+
         Engine {
             board: Board::default(),
-            depth: 0,
+            depth,
             searcher: Searcher::new(),
             endgame: false
         }
@@ -34,6 +37,11 @@ impl Engine {
             nps = self.searcher.nodes
         } else {
             nps = self.searcher.nodes / elapsed as u64;
+        }
+
+        match mv {
+            None => { panic!("No valid move !!!") }
+            _ => {}
         }
     
         self.board.play_unchecked(mv.unwrap());
