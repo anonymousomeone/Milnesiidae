@@ -23,11 +23,7 @@ impl Uci {
       self.engine.board = Board::default();
     } else {
       self.engine.board = Board::default();
-      let moves = Uci::parsemoves(self, msg.split_off(3));
-
-      for mv in moves {
-        self.engine.board.play(mv);
-      }
+      Uci::parsemoves(self, msg.split_off(3));
     }
   }
 
@@ -95,19 +91,15 @@ impl Uci {
   }
   
   // castling parsing
-  pub fn parsemoves(&self, msg: Vec<&str>) -> Vec<Move> {
-    let mut moves: Vec<Move> = Vec::new();
-    let board = &self.engine.board;
+  pub fn parsemoves(&mut self, msg: Vec<&str>) {
 
     for str in msg {
       let mv: Move = str.parse().unwrap();
       
-      let mv = Uci::castle(board, mv);
+      let mv = Uci::castle(&self.engine.board, mv);
       
-      moves.push(mv);
+      self.engine.board.play(mv);
     }
-
-    moves
   }
 
   fn castle(board: &Board, mut mv: Move) -> Move {
@@ -116,29 +108,9 @@ impl Uci {
     (mv.to == Square::C1 || mv.to == Square::G1) && 
      board.piece_on(mv.from).unwrap().eq(&Piece::King)
     {
-      let h1 = board.piece_on(Square::H1);
-      let a1 = board.piece_on(Square::A1);
-
-      match h1 {
-        Some(piece) => {
-          if piece != Piece::Rook {
-            return mv;
-          }
-        },
-        None => return mv
-      }
-
-      match a1 {
-        Some(piece) => {
-          if piece != Piece::Rook {
-            return mv;
-          }
-        },
-        None => return mv
-      }
       if mv.to == Square::C1 {
         mv.to = Square::A1;
-      } else {
+      } else if mv.to == Square::G1 {
         mv.to = Square::H1;
       }
     } // black castling
@@ -146,31 +118,10 @@ impl Uci {
           (mv.to == Square::C8 || mv.to == Square::G8) && 
           board.piece_on(mv.from).unwrap() == Piece::King
 
-    {
-      let h8 = board.piece_on(Square::H8);
-      let a8 = board.piece_on(Square::A8);
-
-      match h8 {
-        Some(piece) => {
-          if piece != Piece::Rook {
-            return mv;
-          }
-        },
-        None => return mv
-      }
-
-      match a8 {
-        Some(piece) => {
-          if piece != Piece::Rook {
-            return mv;
-          }
-        },
-        None => return mv
-      }
-
+    { 
       if mv.to == Square::C8 {
         mv.to = Square::A8;
-      } else {
+      } else if mv.to == Square::G8 {
         mv.to = Square::H8;
       }
     }
