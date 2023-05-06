@@ -46,8 +46,8 @@ impl Uci {
       "position" => {
         if msg[1] == "startpos" {
           self.startpos(msg);
-        } else {
-          self.engine.board = Board::from_fen(msg[2], false).unwrap();
+        } else if msg[1] == "fen" {
+          self.engine.board = Board::from_fen(&msg[2..].join(" "), false).unwrap();
         }
       },
 
