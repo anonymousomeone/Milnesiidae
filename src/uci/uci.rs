@@ -78,6 +78,18 @@ impl Uci {
         println!("{:#?}", self.engine.board.occupied());
       }
 
+      "piece" => {
+        let square: Result<Square, SquareParseError> = msg[1].parse();
+
+        match square {
+          Ok(square) => { 
+            println!("{:#?}", self.engine.board.piece_on(square));
+           }
+
+          Err(_) => println!("skill issue (not a square)")
+        }
+      }
+
       _ => {}
     }
   }
@@ -85,35 +97,84 @@ impl Uci {
   // castling parsing
   pub fn parsemoves(&self, msg: Vec<&str>) -> Vec<Move> {
     let mut moves: Vec<Move> = Vec::new();
+    let board = &self.engine.board;
+
     for str in msg {
-      let mut mv: Move = str.parse().unwrap();
+      let mv: Move = str.parse().unwrap();
       
-      // white castling
-      if mv.from == Square::E1 && 
-        (mv.to == Square::C1 || mv.to == Square::G1) && 
-         self.engine.board.piece_on(mv.from).unwrap() == Piece::King 
-      {
-        if mv.to == Square::C1 {
-          mv.to = Square::A1;
-        } else {
-          mv.to = Square::H1;
-        }
-      } 
-      // black castling
-      else if mv.from == Square::E8 && 
-             (mv.to == Square::C8 || mv.to == Square::G8) && 
-              self.engine.board.piece_on(mv.from).unwrap() == Piece::King 
-      {
-        if mv.to == Square::C8 {
-          mv.to = Square::A8;
-        } else {
-          mv.to = Square::H8;
-        }
-      }
+      let mv = Uci::castle(board, mv);
       
       moves.push(mv);
     }
 
     moves
+  }
+
+  fn castle(board: &Board, mut mv: Move) -> Move {
+    // white castling
+    if mv.from == Square::E1 && 
+    (mv.to == Square::C1 || mv.to == Square::G1) && 
+     board.piece_on(mv.from).unwrap().eq(&Piece::King)
+    {
+      let h1 = board.piece_on(Square::H1);
+      let a1 = board.piece_on(Square::A1);
+
+      match h1 {
+        Some(piece) => {
+          if piece != Piece::Rook {
+            return mv;
+          }
+        },
+        None => return mv
+      }
+
+      match a1 {
+        Some(piece) => {
+          if piece != Piece::Rook {
+            return mv;
+          }
+        },
+        None => return mv
+      }
+      if mv.to == Square::C1 {
+        mv.to = Square::A1;
+      } else {
+        mv.to = Square::H1;
+      }
+    } // black castling
+    else if mv.from == Square::E8 && 
+          (mv.to == Square::C8 || mv.to == Square::G8) && 
+          board.piece_on(mv.from).unwrap() == Piece::King
+
+    {
+      let h8 = board.piece_on(Square::H8);
+      let a8 = board.piece_on(Square::A8);
+
+      match h8 {
+        Some(piece) => {
+          if piece != Piece::Rook {
+            return mv;
+          }
+        },
+        None => return mv
+      }
+
+      match a8 {
+        Some(piece) => {
+          if piece != Piece::Rook {
+            return mv;
+          }
+        },
+        None => return mv
+      }
+
+      if mv.to == Square::C8 {
+        mv.to = Square::A8;
+      } else {
+        mv.to = Square::H8;
+      }
+    }
+
+    return mv;
   }
 }
