@@ -3,6 +3,7 @@ use cozy_chess::*;
 use crate::eval::evaluator;
 use crate::search::constants::*;
 
+use std::sync::{atomic::{AtomicBool, Ordering}, Arc};
 pub struct Searcher {
     pub board: Board,
     pub past_pos: Vec<u64>,
@@ -11,6 +12,8 @@ pub struct Searcher {
     pub endgame: bool,
 
     pub killer_moves: [[Move; (MAX_DEPTH + 1) as usize]; MAX_KILLER_MOVES],
+
+    pub out_of_time: Arc<AtomicBool>,
 }
 
 impl Searcher {
@@ -22,32 +25,39 @@ pub fn new() -> Searcher {
         nodes: 0,
 
         killer_moves: [[Searcher::nmove(); (MAX_DEPTH + 1) as usize]; MAX_KILLER_MOVES],
-        endgame: false
+        endgame: false,
+
+        out_of_time: Arc::new(AtomicBool::new(false))
     }
 }
 
-pub fn search(&mut self, board: &Board, depth: i32, mut ply: i32, mut alpha: i32, beta: i32) -> (Option<Move>, i32) {
+pub fn search(&mut self, board: &Board, depth: i32, mut ply: i32, mut alpha: i32, beta: i32) -> Option<(Option<Move>, i32)> {
     self.nodes += 1;
     ply += 1;
+
+    if self.out_of_time.load(Ordering::Relaxed) {
+        return None;
+    }
     
     match board.status() {
-        GameStatus::Drawn => return (None, 0),
-        GameStatus::Won => return (None, -30000 + self.depth - depth),
+        GameStatus::Drawn => return Some((None, 0)),
+        GameStatus::Won => return Some((None, -30000 + self.depth - depth)),
         GameStatus::Ongoing => {}
     }
 
     if self.past_pos.len() > 6 {
         let hash = board.hash();
         if hash == self.past_pos[self.past_pos.len() - 4] {
-            return (None, 0)
+            return Some((None, 0))
         }
     }
     
-    let moves: Vec<Move> = evaluator::sorted_move_gen(&board, self);
-
     if depth == 0 {
         return self.qsearch(board, alpha, beta, self.depth);
     }
+
+    let moves: Vec<Move> = evaluator::sorted_move_gen(&board, self);
+
     
     let mut best_move: Option<Move> = None;
     let mut eval = i32::MIN;
@@ -55,7 +65,9 @@ pub fn search(&mut self, board: &Board, depth: i32, mut ply: i32, mut alpha: i32
     for mv in moves {
         let mut nboard = board.clone();
         nboard.play_unchecked(mv);
-        let (_, score) = self.search(&nboard, depth - 1, ply, -beta, -alpha);
+
+        let (_, score) = self.search(&nboard, depth - 1, ply, -beta, -alpha)?;
+        
         let score = -score;
         if score > eval {
             eval = score;
@@ -70,29 +82,33 @@ pub fn search(&mut self, board: &Board, depth: i32, mut ply: i32, mut alpha: i32
         }
 
     }
-    (best_move, eval)
+    Some((best_move, eval))
 }
-pub fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) -> (Option<Move>, i32) {
+pub fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32) -> Option<(Option<Move>, i32)> {
     self.nodes += 1;
     ply += 1;
 
+    if self.out_of_time.load(Ordering::Relaxed) {
+        return None;
+    }
+
     match board.status() {
-        GameStatus::Drawn => return (None, 0),
-        GameStatus::Won => return (None, -30000 + ply),
+        GameStatus::Drawn => return Some((None, 0)),
+        GameStatus::Won => return Some((None, -30000 + ply)),
         GameStatus::Ongoing => {}
     }
 
     if self.past_pos.len() > 6 {
         let hash = board.hash();
         if hash == self.past_pos[self.past_pos.len() - 4] {
-            return (None, 0)
+            return Some((None, 0))
         }
     }
     
     let stand_pat = evaluator::evaluate(&board, self.endgame);
     
     if stand_pat >= beta {
-        return (None, beta);
+        return Some((None, beta));
     }
     
     if alpha < stand_pat {
@@ -102,7 +118,7 @@ pub fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32
     let moves: Vec<Move> = evaluator::loud_move_gen(&board);
 
     if moves.len() == 0 {
-        return (None, stand_pat)
+        return Some((None, stand_pat))
     }
     
     let mut best_move: Option<Move> = None;
@@ -111,8 +127,9 @@ pub fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32
     for mv in moves {
         let mut nboard = board.clone();
         nboard.play_unchecked(mv);
-        
-        let (_, score) = self.qsearch(&nboard, -beta, -alpha, ply);
+
+        let (_, score) = self.qsearch(&nboard, -beta, -alpha, ply)?;
+
         let score = -score;
         if score > eval {
             eval = score;
@@ -126,7 +143,7 @@ pub fn qsearch(&mut self, board: &Board, mut alpha: i32, beta: i32, mut ply: i32
         }
 
     }
-    (best_move, eval)
+    Some((best_move, eval))
 }
 
 fn store_killer(&mut self, mv: Move, ply: i32) {

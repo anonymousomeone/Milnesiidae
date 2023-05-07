@@ -2,7 +2,7 @@ use crate::Engine;
 use cozy_chess::*;
 // http://wbec-ridderkerk.nl/html/UCIProtocol.html
 
-use std::process;
+use std::{process, num::ParseIntError};
 
 pub struct Uci {
   engine: Engine,
@@ -31,6 +31,7 @@ impl Uci {
     let mut msg = msg.split(" ").collect::<Vec<&str>>();
 
     let command = msg[0];
+    let args = msg[1..].to_vec();
 
     match command {
       "isready" => println!("readyok"),
@@ -59,16 +60,42 @@ impl Uci {
       },
 
       "go" => {
-        let side = self.engine.board.side_to_move();
-        let (mv, eval, nodes, nps) = self.engine.go();
+        if args.len() > 0 {
+          for i in 0..args.len() {
+            let arg = args[i];
 
-        let cp;
-        match side {
-          Color::Black => { cp = -eval }
-          Color::White => { cp = eval }
+            match arg {
+              "wtime" => {
+                let wtime: u32 = args[i + 1].parse().expect("bad wtime");
+                
+                self.engine.wtime = wtime;
+                continue;
+              },
+              "btime" => {
+                let btime: u32 = args[i + 1].parse().expect("bad btime");
+
+                self.engine.btime = btime;
+                continue;
+              },
+              "movestogo" => {
+                let togo: u16 = args[i + 1].parse().expect("bad movestogo");
+
+                self.engine.movestogo = togo;
+                continue;
+              }
+
+              _ => {}
+            }
+          }
         }
 
-        println!("info score cp {} nodes {} nps {}", cp, nodes, nps);
+        // println!("wtime: {}", self.engine.wtime);
+        // println!("btime: {}", self.engine.btime);
+        // println!("movestogo: {}", self.engine.movestogo);
+
+
+        let mv = self.engine.go();
+
         println!("bestmove {}", mv);
       }
 
